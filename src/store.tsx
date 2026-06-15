@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { MealLog, Measurement, NutritionDoc } from './data/types';
+import type { ExtraEntry, MealLog, Measurement, NutritionDoc } from './data/types';
 import { parseAndValidate, type ValidationResult } from './data/validator';
 import { todayKey } from './data/nutrition';
 import {
@@ -30,6 +30,9 @@ interface StoreValue {
   addMeasurement: (m: Measurement) => void;
   /** Add (or subtract) water in ml to the day's running total. Clamps at 0. */
   addWater: (ml: number, date?: string) => void;
+  /** Log an ad-hoc food eaten outside the plan, timestamped now. */
+  addExtra: (e: Omit<ExtraEntry, 'id' | 'date' | 'loggedAt'>) => void;
+  removeExtra: (id: string) => void;
   importText: (text: string) => ValidationResult;
   replaceDoc: (doc: NutritionDoc) => void;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
@@ -126,6 +129,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       : rest;
     measurements.sort((a, b) => a.date.localeCompare(b.date));
     commit({ ...doc, logs: { ...doc.logs, measurements } });
+  }
+
+  function addExtra(e: Omit<ExtraEntry, 'id' | 'date' | 'loggedAt'>) {
+    if (!doc) return;
+    const now = new Date();
+    const entry: ExtraEntry = {
+      ...e,
+      id: crypto.randomUUID(),
+      date: todayKey(now),
+      loggedAt: now.toISOString(),
+    };
+    const extras = [...(doc.logs.extras ?? []), entry];
+    commit({ ...doc, logs: { ...doc.logs, extras } });
+  }
+
+  function removeExtra(id: string) {
+    if (!doc) return;
+    const extras = (doc.logs.extras ?? []).filter((e) => e.id !== id);
+    commit({ ...doc, logs: { ...doc.logs, extras } });
   }
 
   function importText(text: string): ValidationResult {
@@ -249,6 +271,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     clearMealLog,
     addMeasurement,
     addWater,
+    addExtra,
+    removeExtra,
     importText,
     replaceDoc,
     updateSettings,

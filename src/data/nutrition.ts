@@ -1,6 +1,6 @@
 // Pure helpers for nutrition math and date handling. No side effects.
 
-import type { Goals, Meal, MealLog, NutritionDoc } from './types';
+import type { ExtraEntry, Goals, Meal, MealLog, NutritionDoc } from './types';
 
 export interface MacroTotals {
   calories: number;
@@ -59,10 +59,20 @@ export function mealStatus(
   return found.length ? found[found.length - 1].status : null;
 }
 
-/** Macros consumed on `date`, counting eaten (full) and partial (half) meals. */
+/** Ad-hoc foods logged on `date`, newest first. */
+export function extrasForDate(doc: NutritionDoc, date: string): ExtraEntry[] {
+  return (doc.logs.extras ?? [])
+    .filter((e) => e.date === date)
+    .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt));
+}
+
+/**
+ * Macros consumed on `date`: eaten (full) and partial (half) meals, plus any
+ * ad-hoc extras (candy, coffee, …) logged that day.
+ */
 export function consumedTotals(doc: NutritionDoc, date: string): MacroTotals {
   const byId = new Map(doc.plan.meals.map((m) => [m.id, m]));
-  return logsForDate(doc, date).reduce<MacroTotals>((acc, log) => {
+  const fromMeals = logsForDate(doc, date).reduce<MacroTotals>((acc, log) => {
     const meal = byId.get(log.mealId);
     if (!meal || log.status === 'skipped') return acc;
     const t = mealTotals(meal);
@@ -74,6 +84,13 @@ export function consumedTotals(doc: NutritionDoc, date: string): MacroTotals {
       fat_g: acc.fat_g + t.fat_g * factor,
     };
   }, { ...ZERO });
+
+  return extrasForDate(doc, date).reduce<MacroTotals>((acc, e) => ({
+    calories: acc.calories + (e.calories ?? 0),
+    protein_g: acc.protein_g + (e.protein_g ?? 0),
+    carbs_g: acc.carbs_g + (e.carbs_g ?? 0),
+    fat_g: acc.fat_g + (e.fat_g ?? 0),
+  }), fromMeals);
 }
 
 /** Water (ml) logged on `date`, summed from the day's measurement. */

@@ -2,6 +2,7 @@ import { useStore } from '../store';
 import MealCard from '../components/MealCard';
 import Totals from '../components/Totals';
 import WaterCard from '../components/WaterCard';
+import QuickAdd from '../components/QuickAdd';
 import {
   consumedTotals,
   goalsAsTotals,
@@ -55,6 +56,8 @@ export default function Today() {
           onClear={() => clearMealLog(m.id, date)}
         />
       ))}
+
+      <QuickAdd />
     </>
   );
 }

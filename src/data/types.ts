@@ -116,9 +116,27 @@ export interface Measurement {
   notes?: string;
 }
 
+/** A food eaten outside the plan (e.g. a candy, a coffee), logged at a moment. */
+export interface ExtraEntry {
+  /** Stable id for removal. */
+  id: string;
+  /** "YYYY-MM-DD". */
+  date: string;
+  /** ISO timestamp when it was logged ("now"). */
+  loggedAt: string;
+  /** What was eaten, free text. Ex.: "Café com leite". */
+  food: string;
+  calories?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+}
+
 export interface Logs {
   meals: MealLog[];
   measurements: Measurement[];
+  /** Ad-hoc foods outside the plan. Optional for backward compatibility. */
+  extras?: ExtraEntry[];
 }
 
 /** The complete app document. */

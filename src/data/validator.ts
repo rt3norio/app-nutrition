@@ -211,6 +211,9 @@ export function validate(raw: unknown): ValidationResult {
       if (raw.logs.measurements !== undefined && !Array.isArray(raw.logs.measurements)) {
         c.err('logs.measurements', '"logs.measurements" deve ser uma lista.');
       }
+      if (raw.logs.extras !== undefined && !Array.isArray(raw.logs.extras)) {
+        c.err('logs.extras', '"logs.extras" deve ser uma lista.');
+      }
     }
   }
 
@@ -267,6 +270,7 @@ export function normalize(doc: NutritionDoc): NutritionDoc {
     logs: {
       meals: doc.logs?.meals ?? [],
       measurements: doc.logs?.measurements ?? [],
+      extras: doc.logs?.extras ?? [],
     },
   };
 }
