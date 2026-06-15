@@ -7,7 +7,7 @@ import Help from './pages/Help';
 import Settings from './pages/Settings';
 
 function Shell() {
-  const { status, signedIn, settings } = useStore();
+  const { status, signedIn, effectiveClientId } = useStore();
   return (
     <div className="app">
       <header className="topbar">
@@ -15,7 +15,7 @@ function Shell() {
         <h1>Nutrição</h1>
         <span className="spacer" />
         <span className="sync-dot">
-          {settings.driveClientId ? (signedIn ? '● Drive' : '○ Drive') : ''}
+          {effectiveClientId ? (signedIn ? '● Drive' : '○ Drive') : ''}
         </span>
       </header>
 

@@ -16,6 +16,7 @@ import {
   type Settings,
 } from './lib/storage';
 import * as drive from './lib/drive';
+import { BUILTIN_CLIENT_ID } from './lib/config';
 
 interface StoreValue {
   doc: NutritionDoc;
@@ -35,6 +36,8 @@ interface StoreValue {
   driveSyncDown: () => Promise<void>;
   driveDisconnect: () => void;
   signedIn: boolean;
+  /** The client id actually used: per-device override, else the baked-in app id. */
+  effectiveClientId: string;
 }
 
 const Ctx = createContext<StoreValue | null>(null);
@@ -61,11 +64,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [status]);
 
+  // Use the per-device override if set, otherwise the app's baked-in client id.
+  const effectiveClientId = settings.driveClientId || BUILTIN_CLIENT_ID;
+
   // Persist on every doc change once loaded.
   function commit(next: NutritionDoc) {
     setDoc(next);
     void saveDoc(next);
-    if (settings.autoSync && settings.driveClientId && drive.isSignedIn()) {
+    if (settings.autoSync && effectiveClientId && drive.isSignedIn()) {
       void doSyncUp(next).catch(() => {/* surfaced via status already */});
     }
   }
@@ -115,13 +121,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }
 
   async function driveConnect() {
-    if (!settings.driveClientId) {
-      setStatus('Configure o Client ID do Google primeiro.');
+    if (!effectiveClientId) {
+      setStatus('Sincronização com Drive ainda não configurada nesta instalação.');
       return;
     }
     setBusy(true);
     try {
-      await drive.signIn(settings.driveClientId);
+      await drive.signIn(effectiveClientId);
       setSignedIn(true);
       setStatus('Conectado ao Google Drive.');
     } catch (e) {
@@ -204,6 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     status,
     busy,
     signedIn,
+    effectiveClientId,
     logMeal,
     clearMealLog,
     addMeasurement,
