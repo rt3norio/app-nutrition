@@ -54,6 +54,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  // Auto-dismiss the status toast a few seconds after it appears.
+  useEffect(() => {
+    if (!status) return;
+    const t = setTimeout(() => setStatus(null), 4000);
+    return () => clearTimeout(t);
+  }, [status]);
+
   // Persist on every doc change once loaded.
   function commit(next: NutritionDoc) {
     setDoc(next);
