@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import type { Meal, MealLog } from '../data/types';
-import { itemsTotals, mealConsumed, mealTotals, round } from '../data/nutrition';
+import { useEffect, useState } from 'react';
+import type { FoodItem, Meal, MealLog } from '../data/types';
+import { itemsTotals, mealConsumed, round } from '../data/nutrition';
 
 const UNIT_LABEL: Record<string, string> = {
   g: 'g',
@@ -19,11 +19,11 @@ const UNIT_LABEL: Record<string, string> = {
 interface Props {
   meal: Meal;
   log?: MealLog | null;
-  onSet?: (s: MealLog['status'], portions?: number[]) => void;
+  onSet?: (s: MealLog['status'], portions?: number[], option?: number) => void;
   onClear?: () => void;
 }
 
-function FoodLines({ items }: { items: Meal['items'] }) {
+function FoodLines({ items }: { items: FoodItem[] }) {
   return (
     <ul className="food-list">
       {items.map((it, i) => (
@@ -42,24 +42,34 @@ function FoodLines({ items }: { items: Meal['items'] }) {
 }
 
 export default function MealCard({ meal, log, onSet, onClear }: Props) {
-  const status = log?.status ?? null;
-  const portions = log?.portions;
-  const full = mealTotals(meal);
   const alts = meal.alternatives ?? [];
+  const options = [
+    { label: 'Plano base', items: meal.items },
+    ...alts.map((a, i) => ({ label: a.name ?? `Opção ${i + 2}`, items: a.items })),
+  ];
+
+  const loggedOption = log?.option ?? 0;
+  const [sel, setSel] = useState(loggedOption);
   const [showAlts, setShowAlts] = useState(false);
   const [editing, setEditing] = useState(false);
   const [qtys, setQtys] = useState<string[]>([]);
 
+  // Follow the logged option when it changes (e.g. on load or after a sync).
+  useEffect(() => setSel(loggedOption), [loggedOption]);
+
+  const status = log?.status ?? null;
+  const selItems = options[sel]?.items ?? meal.items;
+  const selPlanned = itemsTotals(selItems);
   const cls = ['card', 'meal', status ?? ''].join(' ').trim();
 
-  // kcal shown in the header: actual consumed when partial, else the full meal.
-  const headerKcal =
-    status === 'partial' && log ? round(mealConsumed(meal, log).calories) : round(full.calories);
+  // "active" only when the button's status AND option match what's logged.
+  const activeOn = (s: MealLog['status']) => status === s && loggedOption === sel;
 
   function openEditor() {
+    const usePortions = log?.status === 'partial' && loggedOption === sel ? log.portions : undefined;
     setQtys(
-      meal.items.map((it, i) => {
-        const eaten = portions?.[i] != null ? portions[i] * it.quantity : it.quantity;
+      selItems.map((it, i) => {
+        const eaten = usePortions?.[i] != null ? usePortions[i] * it.quantity : it.quantity;
         return String(+eaten.toFixed(2));
       }),
     );
@@ -67,7 +77,7 @@ export default function MealCard({ meal, log, onSet, onClear }: Props) {
   }
 
   function fractions(): number[] {
-    return meal.items.map((it, i) => {
+    return selItems.map((it, i) => {
       const eaten = parseFloat((qtys[i] ?? '').replace(',', '.'));
       if (!Number.isFinite(eaten) || eaten < 0) return 0;
       return eaten / it.quantity;
@@ -75,30 +85,34 @@ export default function MealCard({ meal, log, onSet, onClear }: Props) {
   }
 
   const previewKcal = round(
-    meal.items.reduce((s, it, i) => {
+    selItems.reduce((s, it, i) => {
       const eaten = parseFloat((qtys[i] ?? '').replace(',', '.'));
       const f = Number.isFinite(eaten) && eaten >= 0 ? eaten / it.quantity : 0;
       return s + (it.calories ?? 0) * f;
     }, 0),
   );
 
-  function savePartial() {
-    onSet?.('partial', fractions());
-    setEditing(false);
-  }
+  const headerKcal = log ? round(mealConsumed(meal, log).calories) : round(itemsTotals(meal.items).calories);
 
   return (
     <article className={cls}>
       <div className="meal-head">
         <span className="meal-time">{meal.time}</span>
         <span className="meal-name">{meal.name}</span>
-        {full.calories > 0 && (
+        {itemsTotals(meal.items).calories > 0 && (
           <span className="meal-kcal">
             {headerKcal}
-            {status === 'partial' && <span className="muted"> / {round(full.calories)}</span>} kcal
+            {status === 'partial' && <span className="muted"> / {round(selPlanned.calories)}</span>} kcal
           </span>
         )}
       </div>
+
+      {log && loggedOption > 0 && (
+        <p className="eaten-badge">
+          {status === 'skipped' ? '✕ pulou' : status === 'partial' ? '½ parcial'  : '✓ comeu'} ·{' '}
+          {options[loggedOption]?.label}
+        </p>
+      )}
 
       <FoodLines items={meal.items} />
 
@@ -126,12 +140,29 @@ export default function MealCard({ meal, log, onSet, onClear }: Props) {
         </div>
       )}
 
+      {onSet && options.length > 1 && !editing && (
+        <>
+          <p className="opt-hint">Qual opção você comeu?</p>
+          <div className="opt-pills">
+            {options.map((o, i) => (
+              <button
+                key={i}
+                className={'sm' + (sel === i ? ' sel' : '')}
+                onClick={() => setSel(i)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {editing && (
         <div className="partial-editor">
           <p className="sub" style={{ margin: '2px 0 10px' }}>
-            Ajuste o quanto você comeu de cada item:
+            Ajuste o quanto você comeu — <strong>{options[sel]?.label}</strong>:
           </p>
-          {meal.items.map((it, i) => (
+          {selItems.map((it, i) => (
             <label className="portion-row" key={i}>
               <span className="portion-name">{it.food}</span>
               <span className="portion-input">
@@ -151,10 +182,18 @@ export default function MealCard({ meal, log, onSet, onClear }: Props) {
             </label>
           ))}
           <p className="sub" style={{ margin: '6px 0 10px' }}>
-            ≈ <strong>{previewKcal} kcal</strong> de {round(full.calories)}
+            ≈ <strong>{previewKcal} kcal</strong> de {round(selPlanned.calories)}
           </p>
           <div className="status-row">
-            <button className="sm on-partial" onClick={savePartial}>Salvar parcial</button>
+            <button
+              className="sm on-partial"
+              onClick={() => {
+                onSet?.('partial', fractions(), sel);
+                setEditing(false);
+              }}
+            >
+              Salvar parcial
+            </button>
             <button className="sm ghost" onClick={() => setEditing(false)}>Cancelar</button>
           </div>
         </div>
@@ -163,20 +202,20 @@ export default function MealCard({ meal, log, onSet, onClear }: Props) {
       {onSet && !editing && (
         <div className="status-row">
           <button
-            className={'sm ' + (status === 'eaten' ? 'on-eaten' : '')}
-            onClick={() => (status === 'eaten' ? onClear?.() : onSet('eaten'))}
+            className={'sm ' + (activeOn('eaten') ? 'on-eaten' : '')}
+            onClick={() => (activeOn('eaten') ? onClear?.() : onSet('eaten', undefined, sel))}
           >
             ✓ Comi
           </button>
           <button
-            className={'sm ' + (status === 'partial' ? 'on-partial' : '')}
+            className={'sm ' + (activeOn('partial') ? 'on-partial' : '')}
             onClick={openEditor}
           >
             ½ Parcial
           </button>
           <button
-            className={'sm ' + (status === 'skipped' ? 'on-skipped' : '')}
-            onClick={() => (status === 'skipped' ? onClear?.() : onSet('skipped'))}
+            className={'sm ' + (activeOn('skipped') ? 'on-skipped' : '')}
+            onClick={() => (activeOn('skipped') ? onClear?.() : onSet('skipped', undefined, sel))}
           >
             ✕ Pulei
           </button>

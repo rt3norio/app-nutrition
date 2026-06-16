@@ -76,9 +76,15 @@ export function itemFactor(log: Pick<MealLog, 'status' | 'portions'>, i: number)
   return log.portions?.[i] ?? 0.5;
 }
 
+/** The items of the chosen option: 0/undefined = base meal, else alternatives[option-1]. */
+export function mealOptionItems(meal: Meal, option?: number): FoodItem[] {
+  if (!option) return meal.items;
+  return meal.alternatives?.[option - 1]?.items ?? meal.items;
+}
+
 /** Macros actually consumed for one meal under a given log. */
-export function mealConsumed(meal: Meal, log: Pick<MealLog, 'status' | 'portions'>): MacroTotals {
-  return meal.items.reduce<MacroTotals>((acc, it, i) => {
+export function mealConsumed(meal: Meal, log: Pick<MealLog, 'status' | 'portions' | 'option'>): MacroTotals {
+  return mealOptionItems(meal, log.option).reduce<MacroTotals>((acc, it, i) => {
     const f = itemFactor(log, i);
     return {
       calories: acc.calories + (it.calories ?? 0) * f,

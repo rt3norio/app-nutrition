@@ -146,6 +146,13 @@ body {
 .alt { margin-top: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; border-left: 3px solid var(--brand); }
 .alt .meal-name { font-size: 0.9rem; }
 
+/* Meal option picker */
+.opt-hint { font-size: 0.78rem; color: var(--muted); margin: 12px 0 6px; font-weight: 600; }
+.opt-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.opt-pills button { padding: 6px 10px; font-size: 0.78rem; }
+.opt-pills button.sel { background: var(--brand); border-color: var(--brand); color: #fff; }
+.eaten-badge { font-size: 0.78rem; color: var(--brand-dark); font-weight: 600; margin: 2px 0 0; }
+
 /* Partial-meal editor */
 .partial-editor { margin-top: 12px; padding: 12px; background: var(--surface-2); border-radius: 12px; }
 .portion-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }

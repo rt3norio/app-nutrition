@@ -52,7 +52,7 @@ export default function Today() {
           key={m.id}
           meal={m}
           log={mealLog(doc, date, m.id)}
-          onSet={(s, portions) => logMeal(m.id, s, date, portions)}
+          onSet={(s, portions, option) => logMeal(m.id, s, date, portions, option)}
           onClear={() => clearMealLog(m.id, date)}
         />
       ))}
