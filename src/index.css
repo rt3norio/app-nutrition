@@ -146,6 +146,14 @@ body {
 .alt { margin-top: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; border-left: 3px solid var(--brand); }
 .alt .meal-name { font-size: 0.9rem; }
 
+/* Partial-meal editor */
+.partial-editor { margin-top: 12px; padding: 12px; background: var(--surface-2); border-radius: 12px; }
+.portion-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.portion-name { flex: 1; font-size: 0.88rem; }
+.portion-input { display: flex; align-items: center; gap: 6px; }
+.portion-input input { width: 76px; text-align: right; padding: 6px 8px; }
+.portion-input .muted { font-size: 0.8rem; white-space: nowrap; }
+
 /* Charts ----------------------------------------------------------------- */
 .chart { margin-top: 6px; }
 .bars { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 130px; padding-top: 6px; }

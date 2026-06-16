@@ -115,6 +115,12 @@ export interface MealLog {
   mealId: string;
   status: 'eaten' | 'skipped' | 'partial';
   loggedAt: string; // ISO timestamp
+  /**
+   * For status "partial": fraction actually eaten of each plan item, aligned to
+   * meal.items by index (1 = ate the full planned amount, 0.5 = half, 0 = none,
+   * >1 = ate more). Absent = legacy partial, treated as 0.5 across the board.
+   */
+  portions?: number[];
   notes?: string;
 }
 

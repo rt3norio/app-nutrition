@@ -6,7 +6,7 @@ import QuickAdd from '../components/QuickAdd';
 import {
   consumedTotals,
   goalsAsTotals,
-  mealStatus,
+  mealLog,
   todayKey,
 } from '../data/nutrition';
 import { Link } from 'react-router-dom';
@@ -51,8 +51,8 @@ export default function Today() {
         <MealCard
           key={m.id}
           meal={m}
-          status={mealStatus(doc, date, m.id)}
-          onSet={(s) => logMeal(m.id, s, date)}
+          log={mealLog(doc, date, m.id)}
+          onSet={(s, portions) => logMeal(m.id, s, date, portions)}
           onClear={() => clearMealLog(m.id, date)}
         />
       ))}

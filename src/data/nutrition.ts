@@ -54,14 +54,39 @@ export function logsForDate(doc: NutritionDoc, date: string): MealLog[] {
   return doc.logs.meals.filter((l) => l.date === date);
 }
 
+/** The current log for a meal on a date, or null. Last write wins. */
+export function mealLog(doc: NutritionDoc, date: string, mealId: string): MealLog | null {
+  const found = doc.logs.meals.filter((l) => l.date === date && l.mealId === mealId);
+  return found.length ? found[found.length - 1] : null;
+}
+
 export function mealStatus(
   doc: NutritionDoc,
   date: string,
   mealId: string,
 ): MealLog['status'] | null {
-  // Last write wins if there are duplicates.
-  const found = doc.logs.meals.filter((l) => l.date === date && l.mealId === mealId);
-  return found.length ? found[found.length - 1].status : null;
+  return mealLog(doc, date, mealId)?.status ?? null;
+}
+
+/** Fraction eaten of item `i` under a given log status/portions. */
+export function itemFactor(log: Pick<MealLog, 'status' | 'portions'>, i: number): number {
+  if (log.status === 'skipped') return 0;
+  if (log.status === 'eaten') return 1;
+  // partial: per-item portion if provided, else legacy 0.5 across the board.
+  return log.portions?.[i] ?? 0.5;
+}
+
+/** Macros actually consumed for one meal under a given log. */
+export function mealConsumed(meal: Meal, log: Pick<MealLog, 'status' | 'portions'>): MacroTotals {
+  return meal.items.reduce<MacroTotals>((acc, it, i) => {
+    const f = itemFactor(log, i);
+    return {
+      calories: acc.calories + (it.calories ?? 0) * f,
+      protein_g: acc.protein_g + (it.protein_g ?? 0) * f,
+      carbs_g: acc.carbs_g + (it.carbs_g ?? 0) * f,
+      fat_g: acc.fat_g + (it.fat_g ?? 0) * f,
+    };
+  }, { ...ZERO });
 }
 
 /** Ad-hoc foods logged on `date`, newest first. */
@@ -80,13 +105,12 @@ export function consumedTotals(doc: NutritionDoc, date: string): MacroTotals {
   const fromMeals = logsForDate(doc, date).reduce<MacroTotals>((acc, log) => {
     const meal = byId.get(log.mealId);
     if (!meal || log.status === 'skipped') return acc;
-    const t = mealTotals(meal);
-    const factor = log.status === 'partial' ? 0.5 : 1;
+    const t = mealConsumed(meal, log);
     return {
-      calories: acc.calories + t.calories * factor,
-      protein_g: acc.protein_g + t.protein_g * factor,
-      carbs_g: acc.carbs_g + t.carbs_g * factor,
-      fat_g: acc.fat_g + t.fat_g * factor,
+      calories: acc.calories + t.calories,
+      protein_g: acc.protein_g + t.protein_g,
+      carbs_g: acc.carbs_g + t.carbs_g,
+      fat_g: acc.fat_g + t.fat_g,
     };
   }, { ...ZERO });
 

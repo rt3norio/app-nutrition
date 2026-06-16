@@ -25,7 +25,7 @@ interface StoreValue {
   /** Last sync/drive status message for the UI. */
   status: string | null;
   busy: boolean;
-  logMeal: (mealId: string, status: MealLog['status'], date?: string) => void;
+  logMeal: (mealId: string, status: MealLog['status'], date?: string, portions?: number[]) => void;
   clearMealLog: (mealId: string, date?: string) => void;
   addMeasurement: (m: Measurement) => void;
   /** Add (or subtract) water in ml to the day's running total. Clamps at 0. */
@@ -96,10 +96,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function logMeal(mealId: string, st: MealLog['status'], date = todayKey()) {
+  function logMeal(mealId: string, st: MealLog['status'], date = todayKey(), portions?: number[]) {
     if (!doc) return;
     const meals = doc.logs.meals.filter((l) => !(l.date === date && l.mealId === mealId));
-    meals.push({ date, mealId, status: st, loggedAt: new Date().toISOString() });
+    const entry: MealLog = { date, mealId, status: st, loggedAt: new Date().toISOString() };
+    if (st === 'partial' && portions) entry.portions = portions;
+    meals.push(entry);
     commit({ ...doc, logs: { ...doc.logs, meals } });
   }
 
