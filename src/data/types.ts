@@ -42,6 +42,14 @@ export interface FoodItem {
   notes?: string;
 }
 
+/** A whole substitute option for a meal (e.g. "Opção 2: tapioca"). */
+export interface MealAlternative {
+  /** Optional label, e.g. "Opção 2" or "Versão sem lactose". */
+  name?: string;
+  items: FoodItem[];
+  notes?: string;
+}
+
 /** A scheduled meal with its foods. */
 export interface Meal {
   /** Stable id used to correlate logs to the plan. lowercase-kebab. */
@@ -51,6 +59,8 @@ export interface Meal {
   /** 24h time "HH:MM" the meal is scheduled for. */
   time: string;
   items: FoodItem[];
+  /** Optional substitute versions of this meal the patient may choose instead. */
+  alternatives?: MealAlternative[];
   notes?: string;
 }
 

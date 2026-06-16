@@ -136,6 +136,25 @@ function validateMeal(c: Collector, path: string, meal: unknown, seenIds: Set<st
   } else {
     meal.items.forEach((it, i) => validateFoodItem(c, `${path}.items[${i}]`, it));
   }
+  if (meal.alternatives !== undefined) {
+    if (!Array.isArray(meal.alternatives)) {
+      c.err(`${path}.alternatives`, 'Se presente, "alternatives" deve ser uma lista.', 'Cada alternativa é { "name"?, "items": [ ... ] }.');
+    } else {
+      meal.alternatives.forEach((alt, i) => {
+        const ap = `${path}.alternatives[${i}]`;
+        if (!isObject(alt)) {
+          c.err(ap, 'Cada alternativa deve ser um objeto.', 'Use { "name": "Opção 2", "items": [ ... ] }.');
+          return;
+        }
+        if (alt.name !== undefined) checkString(c, `${ap}.name`, alt.name);
+        if (!Array.isArray(alt.items) || alt.items.length === 0) {
+          c.err(`${ap}.items`, 'A alternativa precisa de uma lista "items" não vazia.');
+        } else {
+          alt.items.forEach((it, j) => validateFoodItem(c, `${ap}.items[${j}]`, it));
+        }
+      });
+    }
+  }
 }
 
 /**

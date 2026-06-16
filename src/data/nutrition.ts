@@ -1,6 +1,6 @@
 // Pure helpers for nutrition math and date handling. No side effects.
 
-import type { ExtraEntry, Goals, Meal, MealLog, NutritionDoc } from './types';
+import type { FoodItem, ExtraEntry, Goals, Meal, MealLog, NutritionDoc } from './types';
 
 export interface MacroTotals {
   calories: number;
@@ -11,9 +11,9 @@ export interface MacroTotals {
 
 const ZERO: MacroTotals = { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
 
-/** Sum the macros declared on a single meal's items. */
-export function mealTotals(meal: Meal): MacroTotals {
-  return meal.items.reduce<MacroTotals>(
+/** Sum the macros declared on a list of food items. */
+export function itemsTotals(items: FoodItem[]): MacroTotals {
+  return items.reduce<MacroTotals>(
     (acc, it) => ({
       calories: acc.calories + (it.calories ?? 0),
       protein_g: acc.protein_g + (it.protein_g ?? 0),
@@ -22,6 +22,11 @@ export function mealTotals(meal: Meal): MacroTotals {
     }),
     { ...ZERO },
   );
+}
+
+/** Sum the macros declared on a single meal's items. */
+export function mealTotals(meal: Meal): MacroTotals {
+  return itemsTotals(meal.items);
 }
 
 /** Sum macros across a list of meals. */
@@ -109,4 +114,42 @@ export function goalsAsTotals(goals?: Goals): MacroTotals {
 
 export function round(n: number): number {
   return Math.round(n);
+}
+
+/** Aggregated metrics for a single tracked day. */
+export interface DaySummary {
+  date: string;
+  totals: MacroTotals;
+  water_ml: number;
+  weight_kg?: number;
+  /** Plan meals marked eaten or partial that day. */
+  mealsAttended: number;
+  /** Total meals in the plan (denominator for adherence). */
+  planMeals: number;
+}
+
+/** Build a per-day history (ascending) from every kind of log in the doc. */
+export function history(doc: NutritionDoc): DaySummary[] {
+  const planMeals = doc.plan.meals.length;
+  const dates = new Set<string>();
+  doc.logs.meals.forEach((l) => dates.add(l.date));
+  (doc.logs.extras ?? []).forEach((e) => dates.add(e.date));
+  doc.logs.measurements.forEach((m) => dates.add(m.date));
+
+  return [...dates]
+    .sort((a, b) => a.localeCompare(b))
+    .map((date) => {
+      const attended = doc.logs.meals.filter(
+        (l) => l.date === date && (l.status === 'eaten' || l.status === 'partial'),
+      ).length;
+      const measurement = doc.logs.measurements.find((m) => m.date === date);
+      return {
+        date,
+        totals: consumedTotals(doc, date),
+        water_ml: waterForDate(doc, date),
+        weight_kg: measurement?.weight_kg,
+        mealsAttended: attended,
+        planMeals,
+      };
+    });
 }

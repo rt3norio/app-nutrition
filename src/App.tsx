@@ -2,6 +2,7 @@ import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import { StoreProvider, useStore } from './store';
 import Today from './pages/Today';
 import Plan from './pages/Plan';
+import History from './pages/History';
 import Data from './pages/Data';
 import Help from './pages/Help';
 import Settings from './pages/Settings';
@@ -23,6 +24,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/plano" element={<Plan />} />
+          <Route path="/historico" element={<History />} />
           <Route path="/dados" element={<Data />} />
           <Route path="/ajuda" element={<Help />} />
           <Route path="/config" element={<Settings />} />
@@ -35,6 +37,7 @@ function Shell() {
         <nav>
           <Tab to="/" icon="📅" label="Hoje" />
           <Tab to="/plano" icon="📋" label="Plano" />
+          <Tab to="/historico" icon="📊" label="Hist." />
           <Tab to="/dados" icon="🔄" label="Dados" />
           <Tab to="/ajuda" icon="❓" label="Ajuda" />
           <Tab to="/config" icon="⚙️" label="Config" />

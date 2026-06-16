@@ -26,6 +26,8 @@ REGRAS DO FORMATO
     - opcionais e recomendados: "calories", "protein_g", "carbs_g", "fat_g" (números).
     - opcionais: "alternatives" (texto), "notes" (texto).
   - opcional: "notes" (texto) na refeição.
+  - opcional "alternatives": lista de versões substitutas da refeição. Cada uma tem
+    "name" (texto, opcional, ex.: "Opção 2") e "items" (mesma estrutura dos items acima).
 - Opcional "plan.goals": metas diárias com números: "calories", "protein_g", "carbs_g", "fat_g", "water_ml".
 - Opcional "plan.supplements": lista de { "name", "dose", "time"?, "notes"? }.
 - Opcional "plan.restrictions": lista de textos. Ex.: ["Sem lactose"].
@@ -54,6 +56,7 @@ export const FIELD_REFERENCE: { name: string; required: boolean; desc: string }[
   { name: 'meals[].time', required: true, desc: 'Horário 24h "HH:MM", ex.: "12:30".' },
   { name: 'items[].food / quantity / unit', required: true, desc: `Alimento, número > 0 e unidade (${UNITS.slice(0, 6).join(', ')}…).` },
   { name: 'items[].calories / protein_g …', required: false, desc: 'Macros opcionais, mas habilitam o progresso diário.' },
+  { name: 'meals[].alternatives', required: false, desc: 'Versões substitutas da refeição: { name?, items[] }.' },
   { name: 'plan.goals', required: false, desc: 'Metas diárias de calorias, macros e água.' },
   { name: 'plan.supplements', required: false, desc: 'name, dose, time?, notes?.' },
   { name: 'plan.restrictions / recommendations', required: false, desc: 'Listas de texto.' },

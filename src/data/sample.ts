@@ -37,6 +37,16 @@ export const SAMPLE_DOC: NutritionDoc = {
           { food: 'Mamão', quantity: 150, unit: 'g', calories: 60, carbs_g: 15 },
         ],
         notes: 'Pode trocar o mamão por banana.',
+        alternatives: [
+          {
+            name: 'Opção 2 — tapioca',
+            items: [
+              { food: 'Tapioca', quantity: 1, unit: 'unidade', calories: 150, carbs_g: 32 },
+              { food: 'Queijo branco', quantity: 30, unit: 'g', calories: 70, protein_g: 6, fat_g: 5 },
+              { food: 'Mamão', quantity: 150, unit: 'g', calories: 60, carbs_g: 15 },
+            ],
+          },
+        ],
       },
       {
         id: 'almoco',

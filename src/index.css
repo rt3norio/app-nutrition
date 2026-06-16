@@ -141,6 +141,21 @@ body {
 .status-row { display: flex; gap: 8px; margin-top: 12px; }
 .status-row button { flex: 1; }
 
+/* Meal alternatives */
+.alts { margin-top: 10px; }
+.alt { margin-top: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 12px; border-left: 3px solid var(--brand); }
+.alt .meal-name { font-size: 0.9rem; }
+
+/* Charts ----------------------------------------------------------------- */
+.chart { margin-top: 6px; }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 130px; padding-top: 6px; }
+.bars .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bars .bar-v { width: 100%; max-width: 22px; min-height: 2px; border-radius: 4px 4px 0 0; }
+.bars .xl { font-size: 0.6rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bars .goal-line { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--warn); pointer-events: none; }
+.line-svg { width: 100%; height: 120px; display: block; }
+.line-meta { margin-top: 6px; }
+
 /* Buttons ---------------------------------------------------------------- */
 button, .btn {
   font: inherit;
