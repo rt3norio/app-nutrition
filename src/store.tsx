@@ -8,6 +8,9 @@ import {
   type SetStateAction,
 } from 'react';
 import type { ExtraEntry, MealLog, Measurement, NutritionDoc } from './data/types';
+import { emptyDoc } from './data/sample';
+import type { WorkoutEntry } from './workout/types';
+import { parseWorkouts, type WkParseResult } from './workout/io';
 import { parseAndValidate, type ValidationResult } from './data/validator';
 import { todayKey, withExtra, withMealLog, withWater } from './data/nutrition';
 import {
@@ -20,6 +23,17 @@ import {
 import * as drive from './lib/drive';
 import * as openrouter from './lib/openrouter';
 import { BUILTIN_CLIENT_ID } from './lib/config';
+
+/** Outcome of a single combined import (diet and/or workout). */
+export interface CombinedImport {
+  ok: boolean;
+  /** Top-level parse error (bad JSON / unrecognized shape). */
+  error?: string;
+  /** Validation result of the diet section, if the file carried one. */
+  nutrition?: ValidationResult;
+  /** Validation result of the workout section, if the file carried one. */
+  workouts?: WkParseResult;
+}
 
 interface StoreValue {
   doc: NutritionDoc;
@@ -44,6 +58,10 @@ interface StoreValue {
   removeExtra: (id: string) => void;
   importText: (text: string) => ValidationResult;
   replaceDoc: (doc: NutritionDoc) => void;
+  /** Replace the workout log (lives inside the same doc → persists & syncs). */
+  setWorkouts: (entries: WorkoutEntry[]) => void;
+  /** Single import: one JSON may carry the diet plan and/or the workout log. */
+  importCombined: (text: string) => CombinedImport;
   updateSettings: (patch: Partial<Settings>) => Promise<void>;
   driveConnect: () => Promise<void>;
   driveSyncUp: () => Promise<void>;
@@ -202,6 +220,73 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     commit(next);
   }
 
+  function setWorkouts(entries: WorkoutEntry[]) {
+    commit({ ...(doc ?? emptyDoc()), workouts: entries });
+  }
+
+  // One JSON may carry the diet (`plan`) and/or the workout log (`workouts`,
+  // or a bare array of entries). Each present section is validated; nothing is
+  // applied unless every present section is valid (atomic import).
+  function importCombined(text: string): CombinedImport {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text);
+    } catch (e) {
+      return { ok: false, error: `JSON inválido: ${errMsg(e)}` };
+    }
+
+    const obj = isObj(raw) ? raw : null;
+    const wkArr = Array.isArray(raw)
+      ? raw
+      : obj && Array.isArray(obj.workouts)
+        ? obj.workouts
+        : null;
+    const hasNutrition = !!obj && (isObj(obj.plan) || Array.isArray(obj.meals));
+
+    if (!hasNutrition && !wkArr) {
+      return {
+        ok: false,
+        error: 'Não reconheci dados de plano (refeições) nem de treino neste arquivo.',
+      };
+    }
+
+    const base = doc ?? emptyDoc();
+    let nutrition: ValidationResult | undefined;
+    let nextDoc: NutritionDoc = base;
+
+    if (hasNutrition && obj) {
+      const rest: Record<string, unknown> = { ...obj };
+      delete rest.workouts;
+      const { result, doc: parsed } = parseAndValidate(JSON.stringify(rest));
+      nutrition = result;
+      if (!result.valid || !parsed) return { ok: false, nutrition };
+      const keepLogs =
+        parsed.logs.meals.length === 0 && parsed.logs.measurements.length === 0
+          ? base.logs
+          : parsed.logs;
+      // Preserve existing workouts unless the file brings its own.
+      nextDoc = { ...parsed, logs: keepLogs, workouts: base.workouts };
+    }
+
+    let workouts: WkParseResult | undefined;
+    if (wkArr) {
+      workouts = parseWorkouts(JSON.stringify(wkArr));
+      if (!workouts.valid) return { ok: false, nutrition, workouts };
+      nextDoc = {
+        ...nextDoc,
+        workouts: [...workouts.entries].sort((a, b) => b.date.localeCompare(a.date)),
+      };
+    }
+
+    commit(nextDoc);
+    const parts = [
+      hasNutrition ? `plano (${nextDoc.plan.meals.length} refeições)` : '',
+      wkArr ? `${workouts?.entries.length ?? 0} treinos` : '',
+    ].filter(Boolean);
+    setStatus(`Importado: ${parts.join(' + ')}.`);
+    return { ok: true, nutrition, workouts };
+  }
+
   async function updateSettings(patch: Partial<Settings>) {
     const next = await saveSettings(patch);
     setSettings(next);
@@ -322,6 +407,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     removeExtra,
     importText,
     replaceDoc,
+    setWorkouts,
+    importCombined,
     updateSettings,
     driveConnect,
     driveSyncUp,
@@ -333,6 +420,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCoachTurns,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+function isObj(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function errMsg(e: unknown): string {

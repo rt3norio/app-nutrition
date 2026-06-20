@@ -1,14 +1,21 @@
 import { useRef, useState } from 'react';
-import { useStore } from '../store';
-import { parseAndValidate, type ValidationResult } from '../data/validator';
+import { useStore, type CombinedImport } from '../store';
 import { downloadDoc } from '../lib/storage';
 import { SAMPLE_DOC } from '../data/sample';
+import { SAMPLE_WORKOUTS } from '../workout/io';
 import { Link } from 'react-router-dom';
 
+interface Issue {
+  path: string;
+  message: string;
+  hint?: string;
+  severity: 'error' | 'warning';
+}
+
 export default function Data() {
-  const { doc, importText, replaceDoc } = useStore();
+  const { doc, importCombined } = useStore();
   const [text, setText] = useState('');
-  const [result, setResult] = useState<ValidationResult | null>(null);
+  const [res, setRes] = useState<CombinedImport | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -16,41 +23,38 @@ export default function Data() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const content = String(reader.result ?? '');
-      setText(content);
-      setResult(parseAndValidate(content).result);
+      setText(String(reader.result ?? ''));
+      setRes(null);
     };
     reader.readAsText(file);
-  }
-
-  function validateOnly() {
-    setResult(parseAndValidate(text).result);
+    e.target.value = '';
   }
 
   function doImport() {
-    const r = importText(text);
-    setResult(r);
-    if (r.valid) setText('');
+    const r = importCombined(text);
+    setRes(r);
+    if (r.ok) setText('');
   }
 
-  const hasPlan = doc.plan.meals.length > 0;
+  const hasData = doc.plan.meals.length > 0 || (doc.workouts?.length ?? 0) > 0;
+  const example = JSON.stringify({ ...SAMPLE_DOC, workouts: SAMPLE_WORKOUTS }, null, 2);
 
   return (
     <>
       <div className="card">
-        <h2>Importar prescrição</h2>
+        <h2>Importar</h2>
         <p className="sub">
-          Cole o conteúdo do arquivo JSON enviado pelo nutricionista, ou selecione o
-          arquivo. O validador explica qualquer problema antes de importar.
+          Um arquivo só. Ele pode trazer o <strong>plano alimentar</strong>, o{' '}
+          <strong>treino</strong>, ou os dois — as abas aparecem conforme o que você importar.
+          Cole o JSON ou escolha o arquivo.
         </p>
         <div className="btn-row" style={{ marginBottom: 12 }}>
           <button onClick={() => fileRef.current?.click()}>📂 Escolher arquivo</button>
           <button
             className="ghost"
             onClick={() => {
-              const sample = JSON.stringify(SAMPLE_DOC, null, 2);
-              setText(sample);
-              setResult(parseAndValidate(sample).result);
+              setText(example);
+              setRes(null);
             }}
           >
             Ver exemplo
@@ -66,21 +70,16 @@ export default function Data() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder='{ "schemaVersion": "1.0", "plan": { "meals": [ ... ] } }'
+          placeholder='{ "schemaVersion": "1.0", "plan": { "meals": [ … ] }, "workouts": [ … ] }'
           spellCheck={false}
         />
         <div className="btn-row" style={{ marginTop: 12 }}>
-          <button onClick={validateOnly} disabled={!text.trim()}>Validar</button>
-          <button
-            className="primary"
-            onClick={doImport}
-            disabled={!text.trim() || (result ? !result.valid : false)}
-          >
+          <button className="primary" onClick={doImport} disabled={!text.trim()}>
             Importar
           </button>
         </div>
 
-        {result && <ValidationView result={result} />}
+        {res && <ImportResult res={res} />}
 
         <p className="sub" style={{ marginTop: 14 }}>
           Não sabe gerar o arquivo? Veja o formato em{' '}
@@ -91,22 +90,15 @@ export default function Data() {
       <div className="card">
         <h2>Exportar / fazer backup</h2>
         <p className="sub">
-          Baixe um arquivo com o plano e todo o seu histórico. Guarde-o ou envie para
-          outro aparelho.
+          Baixe um arquivo com o plano, o treino e todo o seu histórico. Guarde-o ou
+          envie para outro aparelho.
         </p>
         <div className="btn-row">
-          <button onClick={() => downloadDoc(doc, `nutricao-${new Date().toISOString().slice(0, 10)}.json`)} disabled={!hasPlan}>
-            ⬇️ Baixar JSON
-          </button>
           <button
-            className="ghost"
-            onClick={() => {
-              if (confirm('Carregar o plano de exemplo? Isso substitui o plano atual (seu histórico é mantido).')) {
-                replaceDoc({ ...SAMPLE_DOC, logs: doc.logs });
-              }
-            }}
+            onClick={() => downloadDoc(doc, `mealmind-${new Date().toISOString().slice(0, 10)}.json`)}
+            disabled={!hasData}
           >
-            Carregar exemplo
+            ⬇️ Baixar JSON
           </button>
         </div>
         <p className="sub" style={{ marginTop: 14 }}>
@@ -118,31 +110,45 @@ export default function Data() {
   );
 }
 
-function ValidationView({ result }: { result: ValidationResult }) {
-  if (result.perfect) {
-    return <div className="banner ok" style={{ marginTop: 12 }}>✓ Arquivo válido e completo. Pode importar.</div>;
+function ImportResult({ res }: { res: CombinedImport }) {
+  if (res.error) {
+    return <div className="banner bad" style={{ marginTop: 12 }}>✕ {res.error}</div>;
   }
   return (
     <div style={{ marginTop: 12 }}>
-      {result.valid ? (
-        <div className="banner ok">✓ Válido para importar — com {result.warnings.length} aviso(s) abaixo.</div>
+      {res.ok ? (
+        <div className="banner ok">✓ Importado com sucesso.</div>
       ) : (
-        <div className="banner bad">✕ {result.errors.length} erro(s) impedem a importação. Corrija e valide de novo.</div>
+        <div className="banner bad">✕ Erros impedem a importação — nada foi alterado.</div>
       )}
-      {result.errors.map((iss, i) => (
-        <div className="issue error" key={'e' + i}>
-          <div className="path">{iss.path}</div>
-          <div className="msg">{iss.message}</div>
-          {iss.hint && <div className="hint">💡 {iss.hint}</div>}
-        </div>
-      ))}
-      {result.warnings.map((iss, i) => (
-        <div className="issue warning" key={'w' + i}>
-          <div className="path">{iss.path}</div>
-          <div className="msg">{iss.message}</div>
-          {iss.hint && <div className="hint">💡 {iss.hint}</div>}
-        </div>
-      ))}
+      <IssueBlock title="Plano alimentar" errors={res.nutrition?.errors} warnings={res.nutrition?.warnings} />
+      <IssueBlock title="Treino" errors={res.workouts?.errors} warnings={res.workouts?.warnings} />
     </div>
+  );
+}
+
+function IssueBlock({
+  title,
+  errors = [],
+  warnings = [],
+}: {
+  title: string;
+  errors?: Issue[];
+  warnings?: Issue[];
+}) {
+  if (errors.length === 0 && warnings.length === 0) return null;
+  const row = (iss: Issue, i: number) => (
+    <div className={'issue ' + iss.severity} key={iss.severity + i}>
+      <div className="path">{iss.path}</div>
+      <div className="msg">{iss.message}</div>
+      {iss.hint && <div className="hint">💡 {iss.hint}</div>}
+    </div>
+  );
+  return (
+    <>
+      <div className="section-title" style={{ margin: '14px 4px 6px' }}>{title}</div>
+      {errors.map(row)}
+      {warnings.map(row)}
+    </>
   );
 }

@@ -1,6 +1,6 @@
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { HashRouter, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { StoreProvider, useStore } from './store';
-import { WorkoutProvider } from './workout/store';
 import Today from './pages/Today';
 import Plan from './pages/Plan';
 import History from './pages/History';
@@ -11,9 +11,12 @@ import Settings from './pages/Settings';
 import Workout from './pages/Workout';
 
 function Shell() {
-  const { status, signedIn, effectiveClientId, settings } = useStore();
+  const { doc, status, signedIn, effectiveClientId, settings } = useStore();
+  const hasFood = doc.plan.meals.length > 0;
+  const hasWorkouts = (doc.workouts?.length ?? 0) > 0;
   return (
     <div className="app">
+      <Landing hasFood={hasFood} hasWorkouts={hasWorkouts} />
       <header className="topbar">
         <span className="logo" aria-hidden>🥗</span>
         <h1>MealMind</h1>
@@ -40,11 +43,11 @@ function Shell() {
 
       <div className="tabbar">
         <nav>
-          <Tab to="/" icon="📅" label="Hoje" />
-          <Tab to="/plano" icon="📋" label="Plano" />
-          <Tab to="/treino" icon="🏋️" label="Treino" />
-          <Tab to="/historico" icon="📊" label="Hist." />
-          {settings.openrouterKey && <Tab to="/coach" icon="💬" label="Coach" />}
+          {hasFood && <Tab to="/" icon="📅" label="Hoje" />}
+          {hasFood && <Tab to="/plano" icon="📋" label="Plano" />}
+          {hasWorkouts && <Tab to="/treino" icon="🏋️" label="Treino" />}
+          {hasFood && <Tab to="/historico" icon="📊" label="Hist." />}
+          {hasFood && settings.openrouterKey && <Tab to="/coach" icon="💬" label="Coach" />}
           <Tab to="/dados" icon="🔄" label="Dados" />
           <Tab to="/ajuda" icon="❓" label="Ajuda" />
           <Tab to="/config" icon="⚙️" label="Config" />
@@ -52,6 +55,21 @@ function Shell() {
       </div>
     </div>
   );
+}
+
+/** When the active tab has no data behind it, send the user to one that does. */
+function Landing({ hasFood, hasWorkouts }: { hasFood: boolean; hasWorkouts: boolean }) {
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const foodPaths = ['/', '/plano', '/historico', '/coach'];
+    if (!hasFood && foodPaths.includes(pathname)) {
+      nav(hasWorkouts ? '/treino' : '/dados', { replace: true });
+    } else if (!hasWorkouts && pathname === '/treino') {
+      nav(hasFood ? '/' : '/dados', { replace: true });
+    }
+  }, [hasFood, hasWorkouts, pathname, nav]);
+  return null;
 }
 
 function Tab({ to, icon, label }: { to: string; icon: string; label: string }) {
@@ -67,9 +85,7 @@ export default function App() {
   return (
     <HashRouter>
       <StoreProvider>
-        <WorkoutProvider>
-          <Shell />
-        </WorkoutProvider>
+        <Shell />
       </StoreProvider>
     </HashRouter>
   );
