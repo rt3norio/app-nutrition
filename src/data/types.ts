@@ -7,6 +7,8 @@
 // The schema is intentionally small and explicit so an LLM can generate a valid
 // document from a plain-language prompt (see docs/PRESCRIPTION_SCHEMA.md).
 
+import type { WorkoutEntry } from '../workout/types';
+
 export const SCHEMA_VERSION = '1.0' as const;
 
 /** Units accepted for a food/supplement quantity. */
@@ -171,4 +173,7 @@ export interface NutritionDoc {
   plan: Plan;
   /** Tracking data owned by the user (the nutritionist leaves this empty). */
   logs: Logs;
+  /** Strength-training log — lives in the same document so a single upload
+   * carries diet and/or workout, and one export/sync covers both. */
+  workouts?: WorkoutEntry[];
 }
