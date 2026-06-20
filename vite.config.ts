@@ -19,8 +19,8 @@ export default defineConfig({
         description:
           'Acompanhe o que comer, quando e quanto. Aberto, gratuito e sem servidor — seus dados ficam no seu Google Drive.',
         lang: 'pt-BR',
-        theme_color: '#2f9e6f',
-        background_color: '#f4f7f5',
+        theme_color: '#f7f8fc',
+        background_color: '#eef1f6',
         display: 'standalone',
         orientation: 'portrait',
         start_url: BASE,

@@ -37,16 +37,24 @@ export default function Chart({
   const y = (v: number) => padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
 
   const line = points.map((p, i) => `${x(i)},${y(p.value)}`).join(' ');
+  const area = `M ${x(0)},${H - padB} L ${line.split(' ').join(' L ')} L ${x(n - 1)},${H - padB} Z`;
   const yRecord = y(record);
+  const gid = `wkgrad-${unit.replace(/\W/g, '')}`;
 
   return (
     <div className="wk-chart">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Gráfico de evolução">
-        {/* y bounds */}
-        <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="var(--line)" strokeWidth={1} />
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+
+        {/* baseline */}
         <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="var(--line)" strokeWidth={1} />
-        <text x={padL - 5} y={padT + 4} textAnchor="end" className="wk-axis">{fmtW(max)}</text>
-        <text x={padL - 5} y={H - padB} textAnchor="end" className="wk-axis">{fmtW(min)}</text>
+        <text x={padL - 6} y={padT + 4} textAnchor="end" className="wk-axis">{fmtW(max)}</text>
+        <text x={padL - 6} y={H - padB} textAnchor="end" className="wk-axis">{fmtW(min)}</text>
 
         {/* record reference line */}
         {n > 1 && record !== min && (
@@ -57,15 +65,18 @@ export default function Chart({
             y2={yRecord}
             stroke={color}
             strokeWidth={1}
-            strokeDasharray="3 3"
-            opacity={0.45}
+            strokeDasharray="2 4"
+            opacity={0.4}
           />
         )}
 
+        {/* gradient area under the line — the "progress" signature */}
+        {n > 1 && <path d={area} fill={`url(#${gid})`} />}
+
         {/* the series */}
-        <polyline points={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <polyline points={line} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
-          <circle key={i} cx={x(i)} cy={y(p.value)} r={3} fill={color} />
+          <circle key={i} cx={x(i)} cy={y(p.value)} r={3.5} fill="var(--surface)" stroke={color} strokeWidth={2} />
         ))}
 
         {/* x bounds (first / last date) */}
